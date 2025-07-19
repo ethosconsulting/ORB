@@ -756,7 +756,7 @@ if st.sidebar.button("Run Analysis"):
             metrics = analyze_strategy_performance(trades_df)
 
             st.subheader("Strategy Performance")
-            
+
             # Overall Performance
             st.markdown("### Overall Performance")
             col1, col2 = st.columns(2)
@@ -770,7 +770,7 @@ if st.sidebar.button("Run Analysis"):
                 st.metric("Average PNL", f"{metrics.get('avg_pnl', 0):.2f}")
                 st.metric("Average Trade Duration", format_duration_minutes(metrics.get('avg_trade_duration')))
                 st.metric("Profit Factor", f"{metrics.get('profit_factor', 0):.2f}")
-            
+
             # Long Positions Performance
             st.markdown("### Long Positions Performance")
             col1, col2 = st.columns(2)
@@ -784,7 +784,7 @@ if st.sidebar.button("Run Analysis"):
                 st.metric("Long Average PNL", f"{metrics.get('long_avg_pnl', 0):.2f}")
                 st.metric("Long Average Duration", format_duration_minutes(metrics.get('long_avg_trade_duration')))
                 st.metric("Long Profit Factor", f"{metrics.get('long_profit_factor', 0):.2f}")
-            
+
             # Short Positions Performance
             st.markdown("### Short Positions Performance")
             col1, col2 = st.columns(2)
@@ -803,12 +803,28 @@ if st.sidebar.button("Run Analysis"):
             # Plot cumulative PNL
             st.subheader("Cumulative PNL Curve")
             fig, ax = plt.subplots(figsize=(12, 6))
+            
+            # Calculate cumulative PNL for all trades
             trades_df['cum_pnl'] = trades_df['pnl'].cumsum()
-            ax.plot(pd.to_datetime(trades_df['date']), trades_df['cum_pnl'], 'b-', linewidth=2)
+            ax.plot(pd.to_datetime(trades_df['date']), trades_df['cum_pnl'], 'b-', linewidth=2, label='All Trades')
+            
+            # Calculate cumulative PNL for long trades only
+            long_trades = trades_df[trades_df['direction'] == 'long'].copy()
+            if not long_trades.empty:
+                long_trades['cum_pnl'] = long_trades['pnl'].cumsum()
+                ax.plot(pd.to_datetime(long_trades['date']), long_trades['cum_pnl'], 'g-', linewidth=2, label='Long Trades Only')
+            
+            # Calculate cumulative PNL for short trades only
+            short_trades = trades_df[trades_df['direction'] == 'short'].copy()
+            if not short_trades.empty:
+                short_trades['cum_pnl'] = short_trades['pnl'].cumsum()
+                ax.plot(pd.to_datetime(short_trades['date']), short_trades['cum_pnl'], 'r-', linewidth=2, label='Short Trades Only')
+            
             ax.set_title('Cumulative PNL Curve')
             ax.set_xlabel('Date')
             ax.set_ylabel('Cumulative PNL')
             ax.grid(True)
+            ax.legend()
             st.pyplot(fig)
             plt.close()
 
