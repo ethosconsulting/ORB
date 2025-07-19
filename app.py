@@ -42,8 +42,8 @@ with st.sidebar:
         start_hour = st.number_input("Start Hour (0-23)", min_value=0, max_value=23, value=12)
         start_minute = st.selectbox("Start Minute", options=['00', '15', '30', '45', '59'], index=0)
     with col2:
-        end_hour = st.number_input("End Hour (0-23)", min_value=0, max_value=23, value=16)
-        end_minute = st.selectbox("End Minute", options=['00', '15', '30', '45','59'], index=2)
+        end_hour = st.number_input("End Hour (0-23)", min_value=0, max_value=23, value=18)
+        end_minute = st.selectbox("End Minute", options=['00', '15', '30', '45','59'], index=0)
 
     # Opening range configuration
     st.subheader("Opening Range Configuration")
@@ -59,18 +59,24 @@ with st.sidebar:
     st.subheader("Date Range")
     col1, col2 = st.columns(2)
     with col1:
-        start_date = st.date_input("Start Date", value=datetime(2025, 5, 12))
+        # Set start_date to 50 days before today
+        start_date = st.date_input("Start Date", 
+                                  value=datetime.now() - timedelta(days=55),
+                                  max_value=datetime.now() - timedelta(days=1))
     with col2:
-        end_date = st.date_input("End Date", value=datetime(2025, 7, 12))
+        # Set end_date to today
+        end_date = st.date_input("End Date", 
+                                value=datetime.now(),
+                                max_value=datetime.now())
 
     st.subheader("TP-SL Range (Absolute Points)")
     col1, col2 = st.columns(2)
     with col1:
-        tp_min = st.number_input("TP Min (points)", min_value=0.1, max_value=100.0, value=5.0, step=0.5)
+        tp_min = st.number_input("TP Min (points)", min_value=0.1, max_value=100.0, value=4.0, step=0.5)
         tp_max = st.number_input("TP Max (points)", min_value=0.1, max_value=100.0, value=10.0, step=0.5)
         tp_step = st.number_input("TP Step", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
     with col2:
-        sl_min = st.number_input("SL Min (points)", min_value=0.1, max_value=100.0, value=5.0, step=0.5)
+        sl_min = st.number_input("SL Min (points)", min_value=0.1, max_value=100.0, value=4.0, step=0.5)
         sl_max = st.number_input("SL Max (points)", min_value=0.1, max_value=100.0, value=10.0, step=0.5)
         sl_step = st.number_input("SL Step", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
 
@@ -81,7 +87,7 @@ with st.sidebar:
     # Input: Friction parameters
     st.subheader("Friction parameters")
     buffer_pts = st.sidebar.number_input("Buffer (pts)", min_value=0.0, max_value=10.0, value=0.25, step=0.05)
-    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
+    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=0.5, step=0.1)
 
 # Helper functions (copied from your code with minor modifications)
 def safe_float(value) -> float:
@@ -803,23 +809,23 @@ if st.sidebar.button("Run Analysis"):
             # Plot cumulative PNL
             st.subheader("Cumulative PNL Curve")
             fig, ax = plt.subplots(figsize=(12, 6))
-            
+
             # Calculate cumulative PNL for all trades
             trades_df['cum_pnl'] = trades_df['pnl'].cumsum()
             ax.plot(pd.to_datetime(trades_df['date']), trades_df['cum_pnl'], 'b-', linewidth=2, label='All Trades')
-            
+
             # Calculate cumulative PNL for long trades only
             long_trades = trades_df[trades_df['direction'] == 'long'].copy()
             if not long_trades.empty:
                 long_trades['cum_pnl'] = long_trades['pnl'].cumsum()
                 ax.plot(pd.to_datetime(long_trades['date']), long_trades['cum_pnl'], 'g-', linewidth=2, label='Long Trades Only')
-            
+
             # Calculate cumulative PNL for short trades only
             short_trades = trades_df[trades_df['direction'] == 'short'].copy()
             if not short_trades.empty:
                 short_trades['cum_pnl'] = short_trades['pnl'].cumsum()
                 ax.plot(pd.to_datetime(short_trades['date']), short_trades['cum_pnl'], 'r-', linewidth=2, label='Short Trades Only')
-            
+
             ax.set_title('Cumulative PNL Curve')
             ax.set_xlabel('Date')
             ax.set_ylabel('Cumulative PNL')
