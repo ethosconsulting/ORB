@@ -1,4 +1,3 @@
-#25 ORB
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -36,21 +35,6 @@ with st.sidebar:
         index=0
     )
 
-    data_source = st.selectbox(
-        "Select Data Source",
-        ["YFinance", "Upload CSV"],
-        index=0,
-        help="Choose between downloading from Yahoo Finance or uploading your own CSV file"
-    )
-
-    uploaded_file = None
-    if data_source == "Upload CSV":
-        uploaded_file = st.file_uploader(
-            "Upload CSV File",
-            type=["csv"],
-            help="Upload a CSV file in the same format as the downloaded data"
-        )
-
     # Trading session hours - using string options but converting to int later
     st.subheader("Trading Session Hours")
     col1, col2 = st.columns(2)
@@ -58,8 +42,8 @@ with st.sidebar:
         start_hour = st.number_input("Start Hour (0-23)", min_value=0, max_value=23, value=12)
         start_minute = st.selectbox("Start Minute", options=['00', '15', '30', '45', '59'], index=0)
     with col2:
-        end_hour = st.number_input("End Hour (0-23)", min_value=0, max_value=23, value=16)
-        end_minute = st.selectbox("End Minute", options=['00', '15', '30', '45','59'], index=2)
+        end_hour = st.number_input("End Hour (0-23)", min_value=0, max_value=23, value=18)
+        end_minute = st.selectbox("End Minute", options=['00', '15', '30', '45','59'], index=0)
 
     # Opening range configuration
     st.subheader("Opening Range Configuration")
@@ -75,26 +59,35 @@ with st.sidebar:
     st.subheader("Date Range")
     col1, col2 = st.columns(2)
     with col1:
-        start_date = st.date_input("Start Date", value=datetime(2025, 5, 12))
+        # Set start_date to 50 days before today
+        start_date = st.date_input("Start Date", 
+                                  value=datetime.now() - timedelta(days=55),
+                                  max_value=datetime.now() - timedelta(days=1))
     with col2:
-        end_date = st.date_input("End Date", value=datetime(2025, 7, 12))
+        # Set end_date to today
+        end_date = st.date_input("End Date", 
+                                value=datetime.now(),
+                                max_value=datetime.now())
 
     st.subheader("TP-SL Range (Absolute Points)")
     col1, col2 = st.columns(2)
     with col1:
-        tp_min = st.number_input("TP Min (points)", min_value=0.1, max_value=100.0, value=5.0, step=0.5)
+        tp_min = st.number_input("TP Min (points)", min_value=0.1, max_value=100.0, value=4.0, step=0.5)
         tp_max = st.number_input("TP Max (points)", min_value=0.1, max_value=100.0, value=10.0, step=0.5)
         tp_step = st.number_input("TP Step", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
     with col2:
-        sl_min = st.number_input("SL Min (points)", min_value=0.1, max_value=100.0, value=5.0, step=0.5)
+        sl_min = st.number_input("SL Min (points)", min_value=0.1, max_value=100.0, value=4.0, step=0.5)
         sl_max = st.number_input("SL Max (points)", min_value=0.1, max_value=100.0, value=10.0, step=0.5)
         sl_step = st.number_input("SL Step", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
+
+    st.subheader("Optimization Settings")
+    skip_poor_rr = st.checkbox("Skip poor risk-reward (SL < TP)", value=True)
 
 
     # Input: Friction parameters
     st.subheader("Friction parameters")
     buffer_pts = st.sidebar.number_input("Buffer (pts)", min_value=0.0, max_value=10.0, value=0.25, step=0.05)
-    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
+    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=0.5, step=0.1)
 
 # Helper functions (copied from your code with minor modifications)
 def safe_float(value) -> float:
@@ -185,7 +178,7 @@ def optimize_tp_sl(daily_data: Dict[datetime.date, pd.DataFrame], tp_range, sl_r
 
     for tp_val, sl_val in product(tp_range, sl_range):
         # Skip poor risk-reward combinations
-        if tp_val < sl_val:
+        if skip_poor_rr and tp_val < sl_val:
             continue
 
         metrics = {
@@ -615,6 +608,7 @@ def analyze_strategy_performance(trades_df: pd.DataFrame) -> Dict:
     if trades_df.empty:
         return {}
 
+    # Overall metrics
     metrics = {
         'total_trades': len(trades_df),
         'winning_trades': len(trades_df[trades_df['pnl'] > 0]),
@@ -629,6 +623,40 @@ def analyze_strategy_performance(trades_df: pd.DataFrame) -> Dict:
                            trades_df[trades_df['pnl'] < 0]['pnl'].sum())
     }
 
+    # Long positions metrics
+    long_trades = trades_df[trades_df['direction'] == 'long']
+    if not long_trades.empty:
+        metrics.update({
+            'long_total_trades': len(long_trades),
+            'long_winning_trades': len(long_trades[long_trades['pnl'] > 0]),
+            'long_losing_trades': len(long_trades[long_trades['pnl'] < 0]),
+            'long_win_rate': len(long_trades[long_trades['pnl'] > 0]) / len(long_trades) * 100,
+            'long_total_pnl': long_trades['pnl'].sum(),
+            'long_avg_pnl': long_trades['pnl'].mean(),
+            'long_avg_trade_duration': long_trades['position_duration'].mean(),
+            'long_max_win': long_trades['pnl'].max(),
+            'long_max_loss': long_trades['pnl'].min(),
+            'long_profit_factor': abs(long_trades[long_trades['pnl'] > 0]['pnl'].sum() /
+                                    long_trades[long_trades['pnl'] < 0]['pnl'].sum())
+        })
+
+    # Short positions metrics
+    short_trades = trades_df[trades_df['direction'] == 'short']
+    if not short_trades.empty:
+        metrics.update({
+            'short_total_trades': len(short_trades),
+            'short_winning_trades': len(short_trades[short_trades['pnl'] > 0]),
+            'short_losing_trades': len(short_trades[short_trades['pnl'] < 0]),
+            'short_win_rate': len(short_trades[short_trades['pnl'] > 0]) / len(short_trades) * 100,
+            'short_total_pnl': short_trades['pnl'].sum(),
+            'short_avg_pnl': short_trades['pnl'].mean(),
+            'short_avg_trade_duration': short_trades['position_duration'].mean(),
+            'short_max_win': short_trades['pnl'].max(),
+            'short_max_loss': short_trades['pnl'].min(),
+            'short_profit_factor': abs(short_trades[short_trades['pnl'] > 0]['pnl'].sum() /
+                                  short_trades[short_trades['pnl'] < 0]['pnl'].sum())
+        })
+
     return metrics
 
 def format_duration_minutes(td):
@@ -636,97 +664,6 @@ def format_duration_minutes(td):
     if pd.isna(td):
         return "N/A"
     return f"{td.total_seconds()/60:.1f}"
-
-
-def prepare_download_data(data: pd.DataFrame) -> Tuple[bytes, str]:
-    """Prepares data for download with European timezone timestamps"""
-    # Make a copy to avoid modifying original
-    download_data = data.copy()
-
-    # Convert to Europe timezone but keep as naive datetime (remove tzinfo)
-    if download_data.index.tz is not None:
-        download_data.index = download_data.index.tz_convert(timezone).tz_localize(None)
-
-    # Reorder columns to match your preferred format
-    download_data = download_data[['Open', 'High', 'Low', 'Close', 'Volume']]
-
-    # Format dates in European style (DD/MM/YYYY)
-    download_data.index = download_data.index.strftime('%d/%m/%Y %H:%M')
-
-    # Generate filename with parameters
-    safe_timezone = timezone.replace('/', '_')
-    file_name = f"{ticker}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{safe_timezone}.csv"
-
-    # Convert to CSV bytes
-    csv_data = download_data.to_csv().encode('utf-8')
-
-    return csv_data, file_name
-
-def process_uploaded_data(uploaded_file, timezone: str, start_date, end_date) -> pd.DataFrame:
-    """Processes uploaded CSV with European timestamps"""
-    try:
-        # Read CSV skipping the first two rows (header starts at row 3)
-        full_data = pd.read_csv(uploaded_file, index_col=0, parse_dates=True, dayfirst=True, skiprows=2)
-
-        # Rename columns to match expected format
-        full_data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-
-        # Validate required columns
-        required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-        if not all(col in full_data.columns for col in required_cols):
-            missing = [col for col in required_cols if col not in full_data.columns]
-            raise ValueError(f"Missing required columns: {missing}")
-
-        # Convert naive datetime to localized (assume CSV times are in Europe timezone)
-        full_data.index = pd.to_datetime(full_data.index).tz_localize(timezone)
-
-        # Filter date range
-        start_dt = pd.to_datetime(start_date).tz_localize(timezone)
-        end_dt = pd.to_datetime(end_date).tz_localize(timezone) + timedelta(days=1)
-        full_data = full_data[(full_data.index >= start_dt) & (full_data.index <= end_dt)]
-
-        if full_data.empty:
-            raise ValueError("No data in selected date range")
-
-        return full_data
-
-    except Exception as e:
-        st.error(f"CSV processing error: {str(e)}")
-        st.stop()
-
-# Download button
-if st.sidebar.button("Download Processed Data"):
-    with st.spinner("Downloading and processing data..."):
-        try:
-            processed_data = get_trading_days_data(
-                start_date=start_date,
-                end_date=end_date,
-                ticker=ticker,
-                timezone=timezone
-            )
-
-            if not processed_data.empty:
-                st.success(f"Downloaded {len(processed_data)} bars of data")
-
-                # Show preview in European date format
-                preview_data = processed_data.copy()
-                preview_data.index = preview_data.index.strftime('%d/%m/%Y %H:%M')
-                st.dataframe(preview_data[['Open', 'High', 'Low', 'Close', 'Volume']].head())
-
-                csv_data, file_name = prepare_download_data(processed_data)
-
-                st.download_button(
-                    label="Download Processed Data as CSV",
-                    data=csv_data,
-                    file_name=file_name,
-                    mime='text/csv',
-                    help="Contains timezone-converted data in UTC format"
-                )
-            else:
-                st.error("No data available for download")
-
-        except Exception as e:
-            st.error(f"Download failed: {str(e)}")
 
 # Main execution block
 if st.sidebar.button("Run Analysis"):
@@ -736,22 +673,10 @@ if st.sidebar.button("Run Analysis"):
         sl_range = np.round(np.arange(sl_min, sl_max + sl_step, sl_step), 2)
 
         # Get and prepare data
-        if data_source == "YFinance":
-            full_data = get_trading_days_data(start_date, end_date, ticker, timezone)
-            if full_data.empty:
-                st.error("No Yahoo Finance data available!")
-                st.stop()
-        else:  # CSV upload
-            if uploaded_file is None:
-                st.error("Please upload a CSV file first!")
-                st.stop()
-
-            full_data = process_uploaded_data(
-                uploaded_file=uploaded_file,
-                timezone=timezone,
-                start_date=start_date,
-                end_date=end_date
-            )
+        full_data = get_trading_days_data(start_date, end_date, ticker, timezone)
+        if full_data.empty:
+            st.error("No data available for the specified date range!")
+            st.stop()
 
         daily_data = split_data_by_day(full_data, start_hour, start_minute, end_hour, end_minute)
         st.success(f"Found {len(daily_data)} trading days in the date range")
@@ -837,29 +762,75 @@ if st.sidebar.button("Run Analysis"):
             metrics = analyze_strategy_performance(trades_df)
 
             st.subheader("Strategy Performance")
+
+            # Overall Performance
+            st.markdown("### Overall Performance")
             col1, col2 = st.columns(2)
-
             with col1:
-                st.metric("Total Trades", metrics['total_trades'])
-                st.metric("Winning Trades", metrics['winning_trades'])
-                st.metric("Losing Trades", metrics['losing_trades'])
-                st.metric("Win Rate", f"{metrics['win_rate']:.1f}%")
-
+                st.metric("Total Trades", metrics.get('total_trades', 0))
+                st.metric("Winning Trades", metrics.get('winning_trades', 0))
+                st.metric("Losing Trades", metrics.get('losing_trades', 0))
+                st.metric("Win Rate", f"{metrics.get('win_rate', 0):.1f}%")
             with col2:
-                st.metric("Total PNL", f"{metrics['total_pnl']:.2f}")
-                st.metric("Average PNL", f"{metrics['avg_pnl']:.2f}")
-                st.metric("Average Trade Duration", format_duration_minutes(metrics['avg_trade_duration']))
-                st.metric("Profit Factor", f"{metrics['profit_factor']:.2f}")
+                st.metric("Total PNL", f"{metrics.get('total_pnl', 0):.2f}")
+                st.metric("Average PNL", f"{metrics.get('avg_pnl', 0):.2f}")
+                st.metric("Average Trade Duration", format_duration_minutes(metrics.get('avg_trade_duration')))
+                st.metric("Profit Factor", f"{metrics.get('profit_factor', 0):.2f}")
+
+            # Long Positions Performance
+            st.markdown("### Long Positions Performance")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Long Trades", metrics.get('long_total_trades', 0))
+                st.metric("Winning Long Trades", metrics.get('long_winning_trades', 0))
+                st.metric("Losing Long Trades", metrics.get('long_losing_trades', 0))
+                st.metric("Long Win Rate", f"{metrics.get('long_win_rate', 0):.1f}%")
+            with col2:
+                st.metric("Long Total PNL", f"{metrics.get('long_total_pnl', 0):.2f}")
+                st.metric("Long Average PNL", f"{metrics.get('long_avg_pnl', 0):.2f}")
+                st.metric("Long Average Duration", format_duration_minutes(metrics.get('long_avg_trade_duration')))
+                st.metric("Long Profit Factor", f"{metrics.get('long_profit_factor', 0):.2f}")
+
+            # Short Positions Performance
+            st.markdown("### Short Positions Performance")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Short Trades", metrics.get('short_total_trades', 0))
+                st.metric("Winning Short Trades", metrics.get('short_winning_trades', 0))
+                st.metric("Losing Short Trades", metrics.get('short_losing_trades', 0))
+                st.metric("Short Win Rate", f"{metrics.get('short_win_rate', 0):.1f}%")
+            with col2:
+                st.metric("Short Total PNL", f"{metrics.get('short_total_pnl', 0):.2f}")
+                st.metric("Short Average PNL", f"{metrics.get('short_avg_pnl', 0):.2f}")
+                st.metric("Short Average Duration", format_duration_minutes(metrics.get('short_avg_trade_duration')))
+                st.metric("Short Profit Factor", f"{metrics.get('short_profit_factor', 0):.2f}")
+
 
             # Plot cumulative PNL
             st.subheader("Cumulative PNL Curve")
             fig, ax = plt.subplots(figsize=(12, 6))
+
+            # Calculate cumulative PNL for all trades
             trades_df['cum_pnl'] = trades_df['pnl'].cumsum()
-            ax.plot(pd.to_datetime(trades_df['date']), trades_df['cum_pnl'], 'b-', linewidth=2)
+            ax.plot(pd.to_datetime(trades_df['date']), trades_df['cum_pnl'], 'b-', linewidth=2, label='All Trades')
+
+            # Calculate cumulative PNL for long trades only
+            long_trades = trades_df[trades_df['direction'] == 'long'].copy()
+            if not long_trades.empty:
+                long_trades['cum_pnl'] = long_trades['pnl'].cumsum()
+                ax.plot(pd.to_datetime(long_trades['date']), long_trades['cum_pnl'], 'g-', linewidth=2, label='Long Trades Only')
+
+            # Calculate cumulative PNL for short trades only
+            short_trades = trades_df[trades_df['direction'] == 'short'].copy()
+            if not short_trades.empty:
+                short_trades['cum_pnl'] = short_trades['pnl'].cumsum()
+                ax.plot(pd.to_datetime(short_trades['date']), short_trades['cum_pnl'], 'r-', linewidth=2, label='Short Trades Only')
+
             ax.set_title('Cumulative PNL Curve')
             ax.set_xlabel('Date')
             ax.set_ylabel('Cumulative PNL')
             ax.grid(True)
+            ax.legend()
             st.pyplot(fig)
             plt.close()
 
