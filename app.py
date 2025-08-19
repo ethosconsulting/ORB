@@ -35,6 +35,21 @@ with st.sidebar:
         index=0
     )
 
+    data_source = st.selectbox(
+        "Select Data Source",
+        ["YFinance", "Upload CSV"],
+        index=0,
+        help="Choose between downloading from Yahoo Finance or uploading your own CSV file"
+    )
+
+    uploaded_file = None
+    if data_source == "Upload CSV":
+        uploaded_file = st.file_uploader(
+            "Upload CSV File",
+            type=["csv"],
+            help="Upload a CSV file in the same format as the downloaded data"
+        )
+
     # Trading session hours - using string options but converting to int later
     st.subheader("Trading Session Hours")
     col1, col2 = st.columns(2)
@@ -665,6 +680,98 @@ def format_duration_minutes(td):
         return "N/A"
     return f"{td.total_seconds()/60:.1f}"
 
+
+def prepare_download_data(data: pd.DataFrame) -> Tuple[bytes, str]:
+    """Prepares data for download with European timezone timestamps"""
+    # Make a copy to avoid modifying original
+    download_data = data.copy()
+
+    # Convert to Europe timezone but keep as naive datetime (remove tzinfo)
+    if download_data.index.tz is not None:
+        download_data.index = download_data.index.tz_convert(timezone).tz_localize(None)
+
+    # Reorder columns to match your preferred format
+    download_data = download_data[['Open', 'High', 'Low', 'Close', 'Volume']]
+
+    # Format dates in European style (DD/MM/YYYY)
+    download_data.index = download_data.index.strftime('%d/%m/%Y %H:%M')
+
+    # Generate filename with parameters
+    safe_timezone = timezone.replace('/', '_')
+    file_name = f"{ticker}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{safe_timezone}.csv"
+
+    # Convert to CSV bytes
+    csv_data = download_data.to_csv().encode('utf-8')
+
+    return csv_data, file_name
+
+def process_uploaded_data(uploaded_file, timezone: str, start_date, end_date) -> pd.DataFrame:
+    """Processes uploaded CSV with European timestamps"""
+    try:
+        # Read CSV skipping the first two rows (header starts at row 3)
+        full_data = pd.read_csv(uploaded_file, index_col=0, parse_dates=True, dayfirst=True, skiprows=2)
+
+        # Rename columns to match expected format
+        full_data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+
+        # Validate required columns
+        required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+        if not all(col in full_data.columns for col in required_cols):
+            missing = [col for col in required_cols if col not in full_data.columns]
+            raise ValueError(f"Missing required columns: {missing}")
+
+        # Convert naive datetime to localized (assume CSV times are in Europe timezone)
+        full_data.index = pd.to_datetime(full_data.index).tz_localize(timezone)
+
+        # Filter date range
+        start_dt = pd.to_datetime(start_date).tz_localize(timezone)
+        end_dt = pd.to_datetime(end_date).tz_localize(timezone) + timedelta(days=1)
+        full_data = full_data[(full_data.index >= start_dt) & (full_data.index <= end_dt)]
+
+        if full_data.empty:
+            raise ValueError("No data in selected date range")
+
+        return full_data
+
+    except Exception as e:
+        st.error(f"CSV processing error: {str(e)}")
+        st.stop()
+
+# Download button
+if st.sidebar.button("Download Processed Data"):
+    with st.spinner("Downloading and processing data..."):
+        try:
+            processed_data = get_trading_days_data(
+                start_date=start_date,
+                end_date=end_date,
+                ticker=ticker,
+                timezone=timezone
+            )
+
+            if not processed_data.empty:
+                st.success(f"Downloaded {len(processed_data)} bars of data")
+
+                # Show preview in European date format
+                preview_data = processed_data.copy()
+                preview_data.index = preview_data.index.strftime('%d/%m/%Y %H:%M')
+                st.dataframe(preview_data[['Open', 'High', 'Low', 'Close', 'Volume']].head())
+
+                csv_data, file_name = prepare_download_data(processed_data)
+
+                st.download_button(
+                    label="Download Processed Data as CSV",
+                    data=csv_data,
+                    file_name=file_name,
+                    mime='text/csv',
+                    help="Contains timezone-converted data in UTC format"
+                )
+            else:
+                st.error("No data available for download")
+
+        except Exception as e:
+            st.error(f"Download failed: {str(e)}")
+
+
 # Main execution block
 if st.sidebar.button("Run Analysis"):
     with st.spinner("Running analysis... This may take a few minutes"):
@@ -673,10 +780,22 @@ if st.sidebar.button("Run Analysis"):
         sl_range = np.round(np.arange(sl_min, sl_max + sl_step, sl_step), 2)
 
         # Get and prepare data
-        full_data = get_trading_days_data(start_date, end_date, ticker, timezone)
-        if full_data.empty:
-            st.error("No data available for the specified date range!")
-            st.stop()
+        if data_source == "YFinance":
+            full_data = get_trading_days_data(start_date, end_date, ticker, timezone)
+            if full_data.empty:
+                st.error("No Yahoo Finance data available!")
+                st.stop()
+        else:  # CSV upload
+            if uploaded_file is None:
+                st.error("Please upload a CSV file first!")
+                st.stop()
+
+            full_data = process_uploaded_data(
+                uploaded_file=uploaded_file,
+                timezone=timezone,
+                start_date=start_date,
+                end_date=end_date
+            )
 
         daily_data = split_data_by_day(full_data, start_hour, start_minute, end_hour, end_minute)
         st.success(f"Found {len(daily_data)} trading days in the date range")
@@ -867,3 +986,4 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
+
