@@ -1,4 +1,4 @@
-#25 ORB
+#26 ORB
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -66,22 +66,26 @@ with st.sidebar:
     col1, col2 = st.columns(2)
     with col1:
         or_start_hour = st.number_input("OR Start Hour (0-23)", min_value=0, max_value=23, value=14)
-        or_start_minute = st.selectbox("OR Start Minute", options=['00', '15', '30', '45'], index=2)
+        or_start_minute = st.selectbox("OR Start Minute",
+                                    options=['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'],
+                                    index=6)  # Default to '30'
     with col2:
-        or_end_hour = st.number_input("OR End Hour (0-23)", min_value=0, max_value=23, value=15)
-        or_end_minute = st.selectbox("OR End Minute", options=['00', '15', '30', '45'], index=0)
+        or_end_hour = st.number_input("OR End Hour (0-23)", min_value=0, max_value=23, value=14)
+        or_end_minute = st.selectbox("OR End Minute",
+                                    options=['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'],
+                                    index=11)  # Default to '55' for '30' min close candle for NYC session.
 
     # Date range
     st.subheader("Date Range")
     col1, col2 = st.columns(2)
     with col1:
         # Set start_date to 50 days before today
-        start_date = st.date_input("Start Date", 
+        start_date = st.date_input("Start Date",
                                   value=datetime.now() - timedelta(days=55),
                                   max_value=datetime.now() - timedelta(days=1))
     with col2:
         # Set end_date to today
-        end_date = st.date_input("End Date", 
+        end_date = st.date_input("End Date",
                                 value=datetime.now(),
                                 max_value=datetime.now())
 
@@ -987,5 +991,3 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
-
-
