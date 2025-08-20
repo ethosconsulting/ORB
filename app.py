@@ -70,10 +70,10 @@ with st.sidebar:
                                     options=['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'],
                                     index=6)  # Default to '30'
     with col2:
-        or_end_hour = st.number_input("OR End Hour (0-23)", min_value=0, max_value=23, value=14)
+        or_end_hour = st.number_input("OR End Hour (0-23)", min_value=0, max_value=23, value=15)
         or_end_minute = st.selectbox("OR End Minute",
                                     options=['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'],
-                                    index=11)  # Default to '55' for '30' min close candle for NYC session.
+                                    index=0)  # Default to '55' for '30' min close candle for NYC session.
 
     # Date range
     st.subheader("Date Range")
@@ -991,3 +991,4 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
+
