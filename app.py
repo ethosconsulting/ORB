@@ -107,7 +107,7 @@ with st.sidebar:
     # Input: Friction parameters
     st.subheader("Friction parameters")
     buffer_pts = st.sidebar.number_input("Buffer (pts)", min_value=0.0, max_value=10.0, value=0.25, step=0.05)
-    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=0.5, step=0.1)
+    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=1.0, step=0.1)
 
 # Helper functions (copied from your code with minor modifications)
 def safe_float(value) -> float:
@@ -991,4 +991,5 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
+
 
