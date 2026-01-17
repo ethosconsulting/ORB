@@ -286,7 +286,9 @@ def simulate_trade(
         'tp_value': None,
         'sl_value': None,
         'tp_distance': None,
-        'sl_distance': None
+        'sl_distance': None,
+        'buffer': buffer,
+        'cost': cost
     }
 
     for idx, row in post_opening_data.iterrows():
@@ -960,4 +962,3 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
-
