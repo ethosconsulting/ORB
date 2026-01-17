@@ -830,9 +830,7 @@ if st.sidebar.button("Run Analysis"):
                 or_start_hour=or_start_hour,
                 or_start_minute=or_start_minute,
                 or_end_hour=or_end_hour,
-                or_end_minute=or_end_minute,
-                buffer=buffer_pts,
-                cost=cost_pts
+                or_end_minute=or_end_minute
             )
 
             if trade:
@@ -962,3 +960,4 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
+
