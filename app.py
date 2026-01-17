@@ -1,4 +1,4 @@
-#26 ORB
+#20260117 - ORB USA 500 ORB and Close.ipynb
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -70,10 +70,10 @@ with st.sidebar:
                                     options=['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'],
                                     index=6)  # Default to '30'
     with col2:
-        or_end_hour = st.number_input("OR End Hour (0-23)", min_value=0, max_value=23, value=15)
+        or_end_hour = st.number_input("OR End Hour (0-23)", min_value=0, max_value=23, value=14)
         or_end_minute = st.selectbox("OR End Minute",
                                     options=['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'],
-                                    index=0)  # Default to '55' for '30' min close candle for NYC session.
+                                    index=11)  # Default to '55' for '30' min close candle for NYC session.
 
     # Date range
     st.subheader("Date Range")
@@ -107,7 +107,7 @@ with st.sidebar:
     # Input: Friction parameters
     st.subheader("Friction parameters")
     buffer_pts = st.sidebar.number_input("Buffer (pts)", min_value=0.0, max_value=10.0, value=0.25, step=0.05)
-    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=1.0, step=0.1)
+    cost_pts = st.sidebar.number_input("Commission + Slippage (pts)", min_value=0.0, max_value=10.0, value=0.5, step=0.1)
 
 # Helper functions (copied from your code with minor modifications)
 def safe_float(value) -> float:
@@ -292,29 +292,39 @@ def simulate_trade(
     }
 
     for idx, row in post_opening_data.iterrows():
+        current_close = safe_float(row['Close'])
+        current_open = safe_float(row['Open'])
         current_high = safe_float(row['High'])
         current_low = safe_float(row['Low'])
 
         # Entry logic
         if trade['entry_time'] is None:
-            if current_high > opening_high:  # Long
-                entry_price = opening_high + buffer + cost
+            if (current_open < opening_high and current_close > opening_high):  # Long
+                entry_price = current_close + buffer + cost
                 trade.update({
                     'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'long',
-                    'tp_price': entry_price + tp_value,
-                    'sl_price': entry_price - sl_value,
+                    'sl_price': opening_low,
+                    'sl_distance': entry_price - opening_low,
+                    'sl_value': entry_price - opening_low,
+                    'tp_distance': (entry_price - opening_low)*1.5,
+                    'tp_value': (entry_price - opening_low)*1.5,
+                    'tp_price': entry_price + (entry_price - opening_low)*1.5,
                     'trade_taken': True
                 })
-            elif current_low < opening_low:  # Short
-                entry_price = opening_low - buffer - cost
+            elif (current_open > opening_low and current_close < opening_low):  # Short
+                entry_price = current_close - buffer - cost
                 trade.update({
                     'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'short',
-                    'tp_price': entry_price - tp_value,
-                    'sl_price': entry_price + sl_value,
+                    'sl_price': opening_high,
+                    'sl_distance': opening_high - entry_price,
+                    'sl_value': opening_high - entry_price,
+                    'tp_distance': (opening_high - entry_price)*1.5,
+                    'tp_value': (opening_high - entry_price)*1.5,
+                    'tp_price': entry_price + (opening_high - entry_price)*1.5,
                     'trade_taken': True
                 })
             continue
@@ -780,9 +790,6 @@ if st.sidebar.button("Download Processed Data"):
 # Main execution block
 if st.sidebar.button("Run Analysis"):
     with st.spinner("Running analysis... This may take a few minutes"):
-        # Create parameter ranges from absolute values
-        tp_range = np.round(np.arange(tp_min, tp_max + tp_step, tp_step), 2)
-        sl_range = np.round(np.arange(sl_min, sl_max + sl_step, sl_step), 2)
 
         # Get and prepare data
         if data_source == "YFinance":
@@ -805,38 +812,6 @@ if st.sidebar.button("Run Analysis"):
         daily_data = split_data_by_day(full_data, start_hour, start_minute, end_hour, end_minute)
         st.success(f"Found {len(daily_data)} trading days in the date range")
 
-        # Run optimization with absolute values
-        optimization_results = optimize_tp_sl(
-            daily_data,
-            tp_range,
-            sl_range,
-            buffer=buffer_pts,
-            cost=cost_pts
-        )
-
-        if optimization_results.empty:
-            st.error("No valid optimization results found!")
-            st.stop()
-
-        # Display results
-        st.subheader("Optimization Results")
-        st.dataframe(optimization_results.head(10))
-
-        # Plot heatmap
-        st.subheader("Parameter Optimization Heatmap")
-        plot_optimization_heatmap(optimization_results)
-
-        st.subheader("Win Rate Optimization Heatmap")
-        plot_win_rate_heatmap(optimization_results)
-
-        st.subheader("Efficiency Frontier Analysis")
-        plot_efficiency_frontier(optimization_results)
-
-        # Get best parameters
-        best_params = optimization_results.iloc[0]
-        tp_opt = best_params['tp_value']
-        sl_opt = best_params['sl_value']
-        st.success(f"Optimal parameters found: TP = {tp_opt:.2f} points, SL = {sl_opt:.2f} points")
 
         # Generate trades with optimal parameters
         all_trades = []
@@ -854,8 +829,6 @@ if st.sidebar.button("Run Analysis"):
                 opening_low=low,
                 atr=tr,
                 expected_candles=expected_candles,
-                tp_value=tp_opt,
-                sl_value=sl_opt,
                 or_start_hour=or_start_hour,
                 or_start_minute=or_start_minute,
                 or_end_hour=or_end_hour,
@@ -991,5 +964,3 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
-
-
