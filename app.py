@@ -228,8 +228,8 @@ def optimize_tp_sl(daily_data: Dict[datetime.date, pd.DataFrame], tp_range, sl_r
                 or_start_minute=or_start_minute,
                 or_end_hour=or_end_hour,
                 or_end_minute=or_end_minute,
-                buffer=buffer,
-                cost=cost
+                buffer= buffer_pts,
+                cost= cost_pts
             )
 
             if trade:
@@ -287,8 +287,8 @@ def simulate_trade(
         'sl_value': None,
         'tp_distance': None,
         'sl_distance': None,
-        'buffer': buffer,
-        'cost': cost
+        'buffer': buffer_pts,
+        'cost': cost_pts
     }
 
     for idx, row in post_opening_data.iterrows():
@@ -832,7 +832,9 @@ if st.sidebar.button("Run Analysis"):
                 or_start_hour=or_start_hour,
                 or_start_minute=or_start_minute,
                 or_end_hour=or_end_hour,
-                or_end_minute=or_end_minute
+                or_end_minute=or_end_minute,
+                buffer= buffer_pts,
+                cost= cost_pts
             )
 
             if trade:
