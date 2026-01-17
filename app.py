@@ -224,8 +224,6 @@ def optimize_tp_sl(daily_data: Dict[datetime.date, pd.DataFrame], tp_range, sl_r
                 opening_low=low,
                 atr=tr,  # Still calculated but not used for TP/SL
                 expected_candles=expected_candles,
-                tp_value=tp_val,  # Now using absolute value
-                sl_value=sl_val,  # Now using absolute value
                 or_start_hour=or_start_hour,
                 or_start_minute=or_start_minute,
                 or_end_hour=or_end_hour,
@@ -285,10 +283,10 @@ def simulate_trade(
         'trade_taken': False,
         'position_duration': None,
         'atr': round(atr, 2),
-        'tp_value': round(tp_value, 2),
-        'sl_value': round(sl_value, 2),
-        'tp_distance': round(tp_value, 2),
-        'sl_distance': round(sl_value, 2)
+        'tp_value': None,
+        'sl_value': None,
+        'tp_distance': None,
+        'sl_distance': None
     }
 
     for idx, row in post_opening_data.iterrows():
@@ -308,9 +306,9 @@ def simulate_trade(
                     'sl_price': opening_low,
                     'sl_distance': entry_price - opening_low,
                     'sl_value': entry_price - opening_low,
-                    'tp_distance': (entry_price - opening_low)*1.5,
-                    'tp_value': (entry_price - opening_low)*1.5,
-                    'tp_price': entry_price + (entry_price - opening_low)*1.5,
+                    'tp_distance': round((entry_price - opening_low)*1.5, 2),
+                    'tp_value': round((entry_price - opening_low)*1.5, 2),
+                    'tp_price': entry_price + round((entry_price - opening_low)*1.5, 2),
                     'trade_taken': True
                 })
             elif (current_open > opening_low and current_close < opening_low):  # Short
@@ -322,9 +320,9 @@ def simulate_trade(
                     'sl_price': opening_high,
                     'sl_distance': opening_high - entry_price,
                     'sl_value': opening_high - entry_price,
-                    'tp_distance': (opening_high - entry_price)*1.5,
-                    'tp_value': (opening_high - entry_price)*1.5,
-                    'tp_price': entry_price + (opening_high - entry_price)*1.5,
+                    'tp_distance': round((opening_high - entry_price)*1.5, 2),
+                    'tp_value': round((opening_high - entry_price)*1.5, 2),
+                    'tp_price': entry_price + round((opening_high - entry_price)*1.5, 2),
                     'trade_taken': True
                 })
             continue
