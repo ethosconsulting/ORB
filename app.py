@@ -317,10 +317,10 @@ def simulate_trade(
                     'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'short',
-                    'sl_price': opening_high+round((opening_high - entry_price)*sl_value, 2),
+                    'sl_price': opening_high + round((opening_high - entry_price)*sl_value, 2),
                     'sl_distance': round((opening_high - entry_price)*sl_value, 2),
                     'tp_distance': round((opening_high - entry_price)*tp_value, 2),
-                    'tp_price': entry_price + round((opening_high - entry_price)*tp_value, 2),
+                    'tp_price': entry_price - round((opening_high - entry_price)*tp_value, 2),
                     'trade_taken': True
                 })
             continue
