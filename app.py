@@ -302,7 +302,7 @@ def simulate_trade(
             if (current_open < opening_high and current_close > opening_high):  # Long
                 entry_price = current_close + buffer + cost
                 trade.update({
-                    'entry_time': next_idx,
+                    'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'long',
                     'sl_price': opening_low-round((entry_price - opening_low)*sl_value, 2),
@@ -314,7 +314,7 @@ def simulate_trade(
             elif (current_open > opening_low and current_close < opening_low):  # Short
                 entry_price = current_close - buffer - cost
                 trade.update({
-                    'entry_time': next_idx,
+                    'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'short',
                     'sl_price': opening_high + round((opening_high - entry_price)*sl_value, 2),
@@ -997,3 +997,4 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
+
