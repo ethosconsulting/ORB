@@ -268,6 +268,11 @@ def simulate_trade(
 
     opening_range_end_time = time(or_end_hour, or_end_min)
     post_opening_data = data[data.index.time > opening_range_end_time]
+    post_opening_data['next_idx'] = post_opening_data.index.shift(-1)
+    post_opening_data['next_open'] = post_opening_data['Open'].shift(-1)
+    post_opening_data['next_high'] = post_opening_data['High'].shift(-1)
+    post_opening_data['next_low'] = post_opening_data['Low'].shift(-1)
+    post_opening_data['next_close'] = post_opening_data['Close'].shift(-1)
 
     trade = {
         'date': data.index[0].date(),
@@ -291,51 +296,46 @@ def simulate_trade(
         'sl_distance': round(sl_value, 2)
     }
 
-    # Convert DataFrame to list of rows for easier lookahead
-    rows = list(post_opening_data.iterrows())
-    
-    for i in range(len(rows) - 1):  # -1 because we need next candle available
-        idx, row = rows[i]
+    for idx, row in post_opening_data.iterrows():
         current_close = safe_float(row['Close'])
         current_open = safe_float(row['Open'])
         current_high = safe_float(row['High'])
         current_low = safe_float(row['Low'])
-        
-        # Check for entry signal
+
+        # Get next candle data
+        next_idx = row['next_idx']
+        next_open = safe_float(row['next_open'])
+        next_high = safe_float(row['next_high'])
+        next_low = safe_float(row['next_low'])
+        next_close = safe_float(row['next_close'])
+
+        # Entry logic
         if trade['entry_time'] is None:
-            # Get next candle's open for entry
-            next_idx, next_row = rows[i + 1]
-            next_open = safe_float(next_row['Open'])
-            
-            if (current_open < opening_high and current_close > opening_high):  # Long signal
-                entry_price = next_open + buffer + cost  # Entry at next candle's open
+            if (current_open < opening_high and current_close > opening_high):  # Long
+                entry_price = next_open + buffer + cost
                 trade.update({
                     'entry_time': next_idx,
                     'entry_price': entry_price,
                     'direction': 'long',
-                    'sl_price': opening_low - round((entry_price - opening_low) * sl_value, 2),
-                    'sl_distance': round((entry_price - opening_low) * sl_value, 2),
-                    'tp_distance': round((entry_price - opening_low) * tp_value, 2),
-                    'tp_price': entry_price + round((entry_price - opening_low) * tp_value, 2),
+                    'sl_price': opening_low-round((entry_price - opening_low)*sl_value, 2),
+                    'sl_distance': round((entry_price - opening_low)*sl_value, 2),
+                    'tp_distance': round((entry_price - opening_low)*tp_value, 2),
+                    'tp_price': entry_price + round((entry_price - opening_low)*tp_value, 2),
                     'trade_taken': True
                 })
-                # Move to next candle (entry candle) for exit checking
-                continue
-                
-            elif (current_open > opening_low and current_close < opening_low):  # Short signal
-                entry_price = next_open - buffer - cost  # Entry at next candle's open
+            elif (current_open > opening_low and current_close < opening_low):  # Short
+                entry_price = next_open - buffer - cost
                 trade.update({
                     'entry_time': next_idx,
                     'entry_price': entry_price,
                     'direction': 'short',
-                    'sl_price': opening_high + round((opening_high - entry_price) * sl_value, 2),
-                    'sl_distance': round((opening_high - entry_price) * sl_value, 2),
-                    'tp_distance': round((opening_high - entry_price) * tp_value, 2),
-                    'tp_price': entry_price - round((opening_high - entry_price) * tp_value, 2),
+                    'sl_price': opening_high + round((opening_high - entry_price)*sl_value, 2),
+                    'sl_distance': round((opening_high - entry_price)*sl_value, 2),
+                    'tp_distance': round((opening_high - entry_price)*tp_value, 2),
+                    'tp_price': entry_price - round((opening_high - entry_price)*tp_value, 2),
                     'trade_taken': True
                 })
-                # Move to next candle (entry candle) for exit checking
-                continue
+            continue
 
         # Exit logic
         if trade['direction'] == 'long':
