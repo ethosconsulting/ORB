@@ -1,4 +1,4 @@
-#20260118 - ORB USA 500 ORB and Close.ipynb
+#
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -290,19 +290,38 @@ def simulate_trade(
         'tp_distance': round(tp_value, 2),
         'sl_distance': round(sl_value, 2)
     }
+    # Convert DataFrame index to list for easier navigation
+    candle_times = list(post_opening_data.index)
 
-    for idx, row in post_opening_data.iterrows():
-        current_close = safe_float(row['Close'])
-        current_open = safe_float(row['Open'])
-        current_high = safe_float(row['High'])
-        current_low = safe_float(row['Low'])
+    i = 0
+    while i < len(candle_times) - 1:
+        current_idx = candle_times[i]
+        next_idx = candle_times[i + 1]
+
+        # Verify exact 5-minute interval
+        if (next_idx - current_idx) != timedelta(minutes=5):
+            i += 1
+            continue
+
+        current_row = post_opening_data.loc[current_idx]
+        current_close = safe_float(current_row['Close'])
+        current_open = safe_float(current_row['Open'])
+        current_high = safe_float(current_row['High'])
+        current_low = safe_float(current_row['Low'])
+
+        next_row = post_opening_data.loc[next_idx]
+        next_close = safe_float(next_row['Close'])
+        next_open = safe_float(next_row['Open'])
+        next_high = safe_float(next_row['High'])
+        next_low = safe_float(next_row['Low'])
+        
 
         # Entry logic
         if trade['entry_time'] is None:
             if (current_open < opening_high and current_close > opening_high):  # Long
-                entry_price = current_close + buffer + cost
+                entry_price = next_open + buffer + cost
                 trade.update({
-                    'entry_time': idx,
+                    'entry_time': next_idx,
                     'entry_price': entry_price,
                     'direction': 'long',
                     'sl_price': opening_low-round((entry_price - opening_low)*sl_value, 2),
@@ -312,9 +331,9 @@ def simulate_trade(
                     'trade_taken': True
                 })
             elif (current_open > opening_low and current_close < opening_low):  # Short
-                entry_price = current_close - buffer - cost
+                entry_price = next_open - buffer - cost
                 trade.update({
-                    'entry_time': idx,
+                    'entry_time': next_idx,
                     'entry_price': entry_price,
                     'direction': 'short',
                     'sl_price': opening_high + round((opening_high - entry_price)*sl_value, 2),
@@ -997,4 +1016,3 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
-
