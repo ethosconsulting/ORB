@@ -332,7 +332,7 @@ def simulate_trade(
                     'exit_time': idx,
                     'exit_price': trade['sl_price'],
                     'exit_reason': 'SL',
-                    'pnl': -sl_distance
+                    'pnl': -trade['sl_distance']
                 })
                 break
             elif current_high >= trade['tp_price']:
@@ -340,7 +340,7 @@ def simulate_trade(
                     'exit_time': idx,
                     'exit_price': trade['tp_price'],
                     'exit_reason': 'TP',
-                    'pnl': tp_distance
+                    'pnl': trade['tp_distance']
                 })
                 break
         else:  # short
@@ -349,7 +349,7 @@ def simulate_trade(
                     'exit_time': idx,
                     'exit_price': trade['sl_price'],
                     'exit_reason': 'SL',
-                    'pnl': -sl_distance
+                    'pnl': -trade['sl_distance']
                 })
                 break
             elif current_low <= trade['tp_price']:
@@ -357,7 +357,7 @@ def simulate_trade(
                     'exit_time': idx,
                     'exit_price': trade['tp_price'],
                     'exit_reason': 'TP',
-                    'pnl': tp_distance
+                    'pnl': trade['tp_distance']
                 })
                 break
 
