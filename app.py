@@ -1,4 +1,4 @@
-#20260117 - ORB USA 500 ORB and Close.ipynb
+#20260118 - ORB USA 500 ORB and Close.ipynb
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -224,12 +224,14 @@ def optimize_tp_sl(daily_data: Dict[datetime.date, pd.DataFrame], tp_range, sl_r
                 opening_low=low,
                 atr=tr,  # Still calculated but not used for TP/SL
                 expected_candles=expected_candles,
+                tp_value=tp_val,  # Now using absolute value
+                sl_value=sl_val,  # Now using absolute value
                 or_start_hour=or_start_hour,
                 or_start_minute=or_start_minute,
                 or_end_hour=or_end_hour,
                 or_end_minute=or_end_minute,
-                buffer= buffer_pts,
-                cost= cost_pts
+                buffer=buffer,
+                cost=cost
             )
 
             if trade:
@@ -283,12 +285,10 @@ def simulate_trade(
         'trade_taken': False,
         'position_duration': None,
         'atr': round(atr, 2),
-        'tp_value': None,
-        'sl_value': None,
-        'tp_distance': None,
-        'sl_distance': None,
-        'buffer': buffer_pts,
-        'cost': cost_pts
+        'tp_value': round(tp_value, 2),
+        'sl_value': round(sl_value, 2),
+        'tp_distance': round(tp_value, 2),
+        'sl_distance': round(sl_value, 2)
     }
 
     for idx, row in post_opening_data.iterrows():
@@ -305,12 +305,10 @@ def simulate_trade(
                     'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'long',
-                    'sl_price': opening_low,
-                    'sl_distance': entry_price - opening_low,
-                    'sl_value': entry_price - opening_low,
-                    'tp_distance': round((entry_price - opening_low)*1.5, 2),
-                    'tp_value': round((entry_price - opening_low)*1.5, 2),
-                    'tp_price': entry_price + round((entry_price - opening_low)*1.5, 2),
+                    'sl_price': opening_low-round((entry_price - opening_low)*sl_value, 2),
+                    'sl_distance': round((entry_price - opening_low)*sl_value, 2),
+                    'tp_distance': round((entry_price - opening_low)*tp_value, 2),
+                    'tp_price': entry_price + round((entry_price - opening_low)*tp_value, 2),
                     'trade_taken': True
                 })
             elif (current_open > opening_low and current_close < opening_low):  # Short
@@ -319,12 +317,10 @@ def simulate_trade(
                     'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'short',
-                    'sl_price': opening_high,
-                    'sl_distance': opening_high - entry_price,
-                    'sl_value': opening_high - entry_price,
-                    'tp_distance': round((opening_high - entry_price)*1.5, 2),
-                    'tp_value': round((opening_high - entry_price)*1.5, 2),
-                    'tp_price': entry_price + round((opening_high - entry_price)*1.5, 2),
+                    'sl_price': opening_high+round((opening_high - entry_price)*sl_value, 2),
+                    'sl_distance': round((opening_high - entry_price)*sl_value, 2),
+                    'tp_distance': round((opening_high - entry_price)*tp_value, 2),
+                    'tp_price': entry_price + round((opening_high - entry_price)*tp_value, 2),
                     'trade_taken': True
                 })
             continue
@@ -790,6 +786,9 @@ if st.sidebar.button("Download Processed Data"):
 # Main execution block
 if st.sidebar.button("Run Analysis"):
     with st.spinner("Running analysis... This may take a few minutes"):
+        # Create parameter ranges from absolute values
+        tp_range = np.round(np.arange(tp_min, tp_max + tp_step, tp_step), 2)
+        sl_range = np.round(np.arange(sl_min, sl_max + sl_step, sl_step), 2)
 
         # Get and prepare data
         if data_source == "YFinance":
@@ -812,6 +811,38 @@ if st.sidebar.button("Run Analysis"):
         daily_data = split_data_by_day(full_data, start_hour, start_minute, end_hour, end_minute)
         st.success(f"Found {len(daily_data)} trading days in the date range")
 
+        # Run optimization with absolute values
+        optimization_results = optimize_tp_sl(
+            daily_data,
+            tp_range,
+            sl_range,
+            buffer=buffer_pts,
+            cost=cost_pts
+        )
+
+        if optimization_results.empty:
+            st.error("No valid optimization results found!")
+            st.stop()
+
+        # Display results
+        st.subheader("Optimization Results")
+        st.dataframe(optimization_results.head(10))
+
+        # Plot heatmap
+        st.subheader("Parameter Optimization Heatmap")
+        plot_optimization_heatmap(optimization_results)
+
+        st.subheader("Win Rate Optimization Heatmap")
+        plot_win_rate_heatmap(optimization_results)
+
+        st.subheader("Efficiency Frontier Analysis")
+        plot_efficiency_frontier(optimization_results)
+
+        # Get best parameters
+        best_params = optimization_results.iloc[0]
+        tp_opt = best_params['tp_value']
+        sl_opt = best_params['sl_value']
+        st.success(f"Optimal parameters found: TP = {tp_opt:.2f} points, SL = {sl_opt:.2f} points")
 
         # Generate trades with optimal parameters
         all_trades = []
@@ -829,10 +860,14 @@ if st.sidebar.button("Run Analysis"):
                 opening_low=low,
                 atr=tr,
                 expected_candles=expected_candles,
+                tp_value=tp_opt,
+                sl_value=sl_opt,
                 or_start_hour=or_start_hour,
                 or_start_minute=or_start_minute,
                 or_end_hour=or_end_hour,
-                or_end_minute=or_end_minute
+                or_end_minute=or_end_minute,
+                buffer=buffer_pts,
+                cost=cost_pts
             )
 
             if trade:
