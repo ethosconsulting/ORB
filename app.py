@@ -268,11 +268,6 @@ def simulate_trade(
 
     opening_range_end_time = time(or_end_hour, or_end_min)
     post_opening_data = data[data.index.time > opening_range_end_time]
-    post_opening_data['next_idx'] = post_opening_data.index.shift(-1)
-    post_opening_data['next_open'] = post_opening_data['Open'].shift(-1)
-    post_opening_data['next_high'] = post_opening_data['High'].shift(-1)
-    post_opening_data['next_low'] = post_opening_data['Low'].shift(-1)
-    post_opening_data['next_close'] = post_opening_data['Close'].shift(-1)
 
     trade = {
         'date': data.index[0].date(),
@@ -302,17 +297,10 @@ def simulate_trade(
         current_high = safe_float(row['High'])
         current_low = safe_float(row['Low'])
 
-        # Get next candle data
-        next_idx = row['next_idx']
-        next_open = safe_float(row['next_open'])
-        next_high = safe_float(row['next_high'])
-        next_low = safe_float(row['next_low'])
-        next_close = safe_float(row['next_close'])
-
         # Entry logic
         if trade['entry_time'] is None:
             if (current_open < opening_high and current_close > opening_high):  # Long
-                entry_price = next_open + buffer + cost
+                entry_price = current_close + buffer + cost
                 trade.update({
                     'entry_time': next_idx,
                     'entry_price': entry_price,
@@ -324,7 +312,7 @@ def simulate_trade(
                     'trade_taken': True
                 })
             elif (current_open > opening_low and current_close < opening_low):  # Short
-                entry_price = next_open - buffer - cost
+                entry_price = current_close - buffer - cost
                 trade.update({
                     'entry_time': next_idx,
                     'entry_price': entry_price,
