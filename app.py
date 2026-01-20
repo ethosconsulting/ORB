@@ -305,7 +305,7 @@ def simulate_trade(
                     'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'long',
-                    'sl_price': opening_low-round((entry_price - opening_low)*sl_value, 2),
+                    'sl_price': entry_price-round((entry_price - opening_low)*sl_value, 2),
                     'sl_distance': round((entry_price - opening_low)*sl_value, 2),
                     'tp_distance': round((entry_price - opening_low)*tp_value, 2),
                     'tp_price': entry_price + round((entry_price - opening_low)*tp_value, 2),
@@ -317,7 +317,7 @@ def simulate_trade(
                     'entry_time': idx,
                     'entry_price': entry_price,
                     'direction': 'short',
-                    'sl_price': opening_high + round((opening_high - entry_price)*sl_value, 2),
+                    'sl_price': entry_price + round((opening_high - entry_price)*sl_value, 2),
                     'sl_distance': round((opening_high - entry_price)*sl_value, 2),
                     'tp_distance': round((opening_high - entry_price)*tp_value, 2),
                     'tp_price': entry_price - round((opening_high - entry_price)*tp_value, 2),
@@ -997,4 +997,5 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
+
 
