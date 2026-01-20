@@ -92,13 +92,13 @@ with st.sidebar:
     st.subheader("TP-SL Range (Absolute Points)")
     col1, col2 = st.columns(2)
     with col1:
-        tp_min = st.number_input("TP Min (points)", min_value=0.1, max_value=100.0, value=4.0, step=0.5)
-        tp_max = st.number_input("TP Max (points)", min_value=0.1, max_value=100.0, value=10.0, step=0.5)
-        tp_step = st.number_input("TP Step", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
+        tp_min = st.number_input("TP Min (points)", min_value=0.1, max_value=100.0, value=1.0, step=0.5)
+        tp_max = st.number_input("TP Max (points)", min_value=0.1, max_value=100.0, value=2.0, step=0.5)
+        tp_step = st.number_input("TP Step", min_value=0.1, max_value=10.0, value=1.0, step=0.5)
     with col2:
-        sl_min = st.number_input("SL Min (points)", min_value=0.1, max_value=100.0, value=4.0, step=0.5)
-        sl_max = st.number_input("SL Max (points)", min_value=0.1, max_value=100.0, value=10.0, step=0.5)
-        sl_step = st.number_input("SL Step", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
+        sl_min = st.number_input("SL Min (points)", min_value=0.1, max_value=100.0, value=1.0, step=0.5)
+        sl_max = st.number_input("SL Max (points)", min_value=0.1, max_value=100.0, value=1.0, step=0.5)
+        sl_step = st.number_input("SL Step", min_value=0.1, max_value=10.0, value=1.0, step=0.5)
 
     st.subheader("Optimization Settings")
     skip_poor_rr = st.checkbox("Skip poor risk-reward (SL < TP)", value=True)
@@ -997,5 +997,6 @@ if st.sidebar.button("Run Analysis"):
 
                     # Add some spacing between plots
                     st.write("---")
+
 
 
